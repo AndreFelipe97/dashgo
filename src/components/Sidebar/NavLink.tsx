@@ -1,6 +1,6 @@
 import { Text, Link as ChakraLink, Icon, LinkProps } from "@chakra-ui/react";
 import { ElementType } from "toasted-notes/node_modules/@types/react";
-import Link from 'next/link';
+import { ActiveLink } from "../ActiveLink";
 
 interface NavLinkProps extends LinkProps {
     icon: ElementType;
@@ -10,7 +10,7 @@ interface NavLinkProps extends LinkProps {
 
 export function NavLink({ icon, children, href, ...rest }: NavLinkProps) {
     return (
-        <Link href={href} passHref>
+        <ActiveLink href={href} passHref>
             <ChakraLink display="flex" align="center" {...rest}>
                 <Icon as={icon } fontSize="20" />
                 <Text
@@ -19,6 +19,6 @@ export function NavLink({ icon, children, href, ...rest }: NavLinkProps) {
                     {children}
                 </Text>
             </ChakraLink>
-        </Link>
+        </ActiveLink>
     );
 }
