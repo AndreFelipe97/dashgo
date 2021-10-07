@@ -11,19 +11,41 @@ import { Box,
     Td,
     Checkbox,
     Text,
-    useBreakpointValue
+    useBreakpointValue,
+    Spinner,
+    Link
 } from '@chakra-ui/react';
 import { RiAddLine, RiPencilLine } from 'react-icons/ri';
-import Link from 'next/link';
+
+
+import NextLink from 'next/link';
 import { Header } from '../../components/Header';
 import { Pagination } from '../../components/Pagination';
 import { Sidebar } from '../../components/Sidebar';
+import { getUsers, useUsers } from '../../services/hooks/users/useUsers';
+import { useState } from 'react';
+import { queryClient } from '../../services/queryClient';
+import { api } from '../../services/api';
+import { GetServerSideProps } from 'next';
+
 
 export default function UserList() {
+    const [page, setPage] = useState(1);
+    const { data, isLoading, isFetching, error } = useUsers(page);
+
     const isWideVersion = useBreakpointValue({
         base: false,
         lg: true,
     });
+
+    async function handlePrefetchUser(userId: string) {
+        await queryClient.prefetchQuery(['user', userId], async () => {
+            const response = await api.get(`users/${userId}`);
+            return response.data;
+        }, {
+            staleTime: 1000 * 60 * 10
+        })
+    }
 
     return (
         <Box>
@@ -51,9 +73,13 @@ export default function UserList() {
                             size="lg"
                             fontWeight="normal"
                         >
-                            Usuários
+                            Usuários 
+                            {
+                                !isLoading && isFetching && 
+                                <Spinner size="sm" color="gray.500" ml="4" />
+                            }
                         </Heading>
-                        <Link href="/users/create" passHref>
+                        <NextLink href="/users/create" passHref>
                             <Button
                                 as="a"
                                 size="sm"
@@ -63,54 +89,82 @@ export default function UserList() {
                             >
                                 Criar Novo
                             </Button>
-                        </Link>
+                        </NextLink>
                     </Flex>
-                    <Table
-                        colorScheme="whiteAlpha"
-                    >
-                        <Thead>
-                            <Tr>
-                                <Th
-                                    px={["4", "4", "6"]}
-                                    color="green.300"
-                                    w="8"
-                                >
-                                    <Checkbox colorScheme="pink" />
-                                </Th>
-                                <Th>
-                                    Usuário
-                                </Th>
-                                { isWideVersion && <Th>Data de cadastro</Th>}
-                                {isWideVersion && <Th w="8"></Th>}
-                            </Tr>
-                        </Thead>
-                        <Tbody>
-                            <Tr px="6">
-                                <Td px={["4", "4", "6"]}><Checkbox colorScheme="pink" /></Td>
-                                <Td>
-                                    <Box>
-                                        <Text fontWeight="bold">André Felipe</Text>
-                                        <Text fontSize="sm" color="gray.300">andrefeliperf17@gmail.com</Text>
-                                    </Box>
-                                </Td>
-                                {isWideVersion && <Td>02 de Outubro de 2021</Td> }
-                                { isWideVersion && <Td>
-                                    <Button
-                                        as="a"
-                                        size="sm"
-                                        fontSize="sm"
-                                        colorScheme="purple"
-                                        leftIcon={<Icon as={RiPencilLine} fontSize="16" />}
-                                    >
-                                        Editar
-                                    </Button>
-                                </Td> }
-                            </Tr>
-                        </Tbody>
-                    </Table>
-                    <Pagination />
+                    { isLoading ? (
+                        <Flex justify="center">
+                            <Spinner />
+                        </Flex>
+                    ) : error ? (
+                        <Flex justify="center">
+                            <Text>Falha ao obter dados dos usuários</Text>
+                        </Flex>
+                    ) : (
+                        <>
+                            <Table
+                                colorScheme="whiteAlpha"
+                            >
+                                <Thead>
+                                    <Tr>
+                                        <Th
+                                            px={["4", "4", "6"]}
+                                            color="green.300"
+                                            w="8"
+                                        >
+                                            <Checkbox colorScheme="pink" />
+                                        </Th>
+                                        <Th>
+                                            Usuário
+                                        </Th>
+                                        { isWideVersion && <Th>Data de cadastro</Th>}
+                                        {isWideVersion && <Th w="8"></Th>}
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                    {data.users.map(user => (
+                                        <Tr key={user.id}>
+                                            <Td px={["4", "4", "6"]}>
+                                                <Checkbox colorScheme="pink" />
+                                            </Td>
+                                            <Td>
+                                                <Box>
+                                                    <Link color="purple.400" onMouseEnter={() => handlePrefetchUser(user.id)}>
+                                                        <Text fontWeight="bold">{user.name}</Text>
+                                                    </Link>
+                                                    <Text fontSize="sm" color="gray.300">{user.email}</Text>
+                                                </Box>
+                                            </Td>
+                                            {isWideVersion && <Td>{user.createdAt}</Td> }
+                                            { isWideVersion && <Td>
+                                                <Button
+                                                    as="a"
+                                                    size="sm"
+                                                    fontSize="sm"
+                                                    colorScheme="purple"
+                                                    leftIcon={<Icon as={RiPencilLine} fontSize="16" />}
+                                                >
+                                                    Editar
+                                                </Button>
+                                            </Td> }
+                                        </Tr>
+                                    ))}
+                                </Tbody>
+                            </Table>
+                            <Pagination totalCountOfRegisters={200} currentPage={page} onPageChage={setPage} />
+                        </>
+                    )}
                 </Box>
             </Flex>
         </Box>
     );
+}
+
+export const getServerSideProps: GetServerSideProps = async () => {
+    const { users, totalCount } = getUsers(1);
+    
+    return {
+        props: {
+            users,
+        }
+    }
 }
